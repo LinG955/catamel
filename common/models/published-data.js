@@ -1,7 +1,7 @@
 "use strict";
 
 const config = require("../../server/config.local");
-const requestPromise = require("request-promise");
+const requestPromise = require('request-promise').defaults({ simple: false }); // it is vital to disable simple
 const fs = require("fs");
 
 const path = "./server/doiconfig.local.json";
@@ -58,10 +58,10 @@ function formRegistrationXML(publishedData) {
     `;
 }
 
-module.exports = function(PublishedData) {
+module.exports = function (PublishedData) {
     const app = require("../../server/server");
 
-    PublishedData.observe("before save", function(ctx, next) {
+    PublishedData.observe("before save", function (ctx, next) {
         const token = ctx.options.accessToken;
         if (token == null) {
             return next(new Error());
@@ -74,20 +74,20 @@ module.exports = function(PublishedData) {
             .catch(err => next(err));
     });
 
-    PublishedData.formPopulate = function(pid, next) {
+    PublishedData.formPopulate = function (pid, next) {
         var Dataset = app.models.Dataset;
         var Proposal = app.models.Proposal;
         var RawDataset = app.models.RawDataset;
         var self = this;
         self.formData = {};
-        Dataset.thumbnail(pid, function(err, thumb) {
+        Dataset.thumbnail(pid, function (err, thumb) {
             if (err) {
                 return next(err);
             }
             self.formData.thumbnail = thumb.thumbnail;
             return next(null, self.formData);
         });
-        Dataset.findById(pid, function(err, ds) {
+        Dataset.findById(pid, function (err, ds) {
             if (err) {
                 return next(err);
             }
@@ -98,7 +98,7 @@ module.exports = function(PublishedData) {
             self.formData.thumbnail = ds.thumbnail;
             //publicationYear;
             //url;
-            Proposal.findById(proposalId, function(err, prop) {
+            Proposal.findById(proposalId, function (err, prop) {
                 if (err) return next(err);
                 if (!prop) return next("No proposal found");
                 self.formData.title = prop.title;
@@ -109,13 +109,11 @@ module.exports = function(PublishedData) {
     };
 
     PublishedData.remoteMethod("formPopulate", {
-        accepts: [
-            {
-                arg: "pid",
-                type: "string",
-                required: true
-            }
-        ],
+        accepts: [{
+            arg: "pid",
+            type: "string",
+            required: true
+        }],
         http: {
             path: "/formPopulate",
             verb: "get"
@@ -127,8 +125,8 @@ module.exports = function(PublishedData) {
     });
 
     //Proposal.findById(ds.pid, function(err, prop)
-    PublishedData.register = function(id, cb) {
-        PublishedData.findById(id, function(err, pub) {
+    PublishedData.register = function (id, cb) {
+        PublishedData.findById(id, function (err, pub) {
             const xml = formRegistrationXML(pub);
 
             if (!config) {
@@ -187,7 +185,7 @@ module.exports = function(PublishedData) {
                 },
                 auth: doiProviderCredentials
             };
-            console.log("before posting to datacite");
+            console.log("before registering");
             if (config.site !== "PSI") {
                 console.log("posting to datacite");
                 console.log(registerDataciteMetadataOptions);
@@ -198,23 +196,35 @@ module.exports = function(PublishedData) {
             } else if (!config.oaiProviderRoute) {
                 return cb("oaiProviderRoute route specified in config.local");
             } else {
+                console.log("registering with OAI service");
                 requestPromise(syncOAIPublication)
-                    .then(() => cb(null, "asdasd"))
-                    .catch(() => cb());
+                    .then(function ($) {
+                        cb(null, "asdasd");
+                    })
+                    .catch(function (err) {
+                        if (err) {
+                            cb(err.message);
+                        }
+                    });
             }
         });
     };
 
     PublishedData.remoteMethod("register", {
-        accepts: [
-            {
-                arg: "id",
-                type: "string",
-                required: true
-            }
-        ],
-        http: { path: "/:id/register", verb: "post" },
-        returns: { arg: "doi", type: "string" }
+        accepts: [{
+            arg: "id",
+            type: "string",
+            required: true
+        }],
+        http: {
+            path: "/:id/register",
+            verb: "post"
+        },
+        // this should just be object so that errors can be returned aswell 
+        returns: {
+            arg: "doi",
+            type: "string"
+        }
     });
     // TODO add logic that give authors privileges to modify data
 
