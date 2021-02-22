@@ -1,0 +1,21 @@
+[{
+    "account": "admin",
+    "password": "nsrl@admin",
+    "email": "scicatadmin@your.site",
+    "role": "admin",
+    "global": true
+}, {
+    "account": "ingestor",
+    "password": "nsrl@ingestor",
+    "email": "scicatingestor@your.site",
+    "role": "ingestor",
+    "global": true
+},
+{
+    "account": "LinG",
+    "password": "nsrl123",
+    "email": "1229166118@qq.com",
+    "role": "admin",
+    "global": true
+}
+]
