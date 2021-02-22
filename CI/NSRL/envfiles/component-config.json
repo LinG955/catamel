@@ -1,0 +1,11 @@
+{
+  "loopback-component-explorer": {
+    "mountPath": "/explorer"
+  },
+  "loopback-component-visualizer": {
+    "mountPath": "/visualize"
+  },
+  "loopback-component-model-diagram": {
+    "mountPath": "/modeldiagram"
+  }
+}

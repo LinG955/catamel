@@ -1,0 +1,39 @@
+{
+  "loopback-component-explorer": {
+    "mountPath": "/explorer"
+  },
+  "loopback-component-visualizer": {
+    "mountPath": "/visualize"
+  },
+  "loopback-component-model-diagram": {
+    "mountPath": "/modeldiagram"
+  },
+  "../node_modules/loopback-component-mq/lib": {
+    "options": {
+      "restPort": 15672,
+      "acls": [{
+        "accessType": "*",
+        "principalType": "ROLE",
+        "principalId": "$unauthenticated",
+        "permission": "DENY"
+      }]
+    },
+    "topology": {
+      "connection": {
+        "uri":  "",
+        "user": "scicat",
+        "pass": "nsrl123",
+        "host": "192.168.68.131",
+        "port": 5672,
+        "vhost": "/scicat"
+      },
+      "exchanges": [{
+      "name": "jobs.write",
+      "type": "topic",
+      "persistent": true,
+      "autoDelete": false,
+      "durable": true
+    }]
+    }
+  }
+}
