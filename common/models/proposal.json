@@ -80,7 +80,7 @@
         {
             "accessType": "*",
             "principalType": "ROLE",
-            "principalId": "proposalingestor",
+            "principalId": "ingestor",
             "permission": "ALLOW"
         },
         {
