@@ -228,7 +228,7 @@ User.validatesUniquenessOf('username', { message: 'username is not unique!' });
 /**
  * 网页跳转登录
  */
-app.get('/api/lssf/login', function (req, res, next) {
+app.post('/api/lssf/login', function (req, res, next) {
     // 通过referer判断跳转的来源网页是否合法
     var referer = req.headers.referer;
     if(referer == null) {
@@ -236,19 +236,22 @@ app.get('/api/lssf/login', function (req, res, next) {
             massage: "Illegal URL ! Please log in from http://lssf.cas.cn/"
         })
     }
-    // console.log(referer);
     // 只允许从合肥光源用户实验管理系统跳转
-    var srcUrl = 'http://localhost:4200';
+    var srcUrl = 'http://localhost:4222';
 
     if(referer.search(srcUrl) == -1) {
         return res.status(403).send({
             massage: "Illegal URL ! Please log in from http://lssf.cas.cn/"
         })
     }
+    var redirectUrl = req.body.redirectUrl;
+    var start = redirectUrl.indexOf("=");
+    var loginUsername = redirectUrl.substring(start+1);
+    console.log("loginUsername: ", loginUsername);
     User.findOne(
         {
             where: {
-                username: req.query.username
+                username: loginUsername
             }
         },
         function (err, user) {
@@ -723,7 +726,7 @@ app.post('/api/connectUserAndGroups', acls, (req, res, next) => {
                             "username": userinstance.username,
                             "receiverName": userArray[index].name,
                             "email": userinstance.email,
-                            "accessGroups": ['HLS-II', 'NSRL'],
+                            "accessGroups": [group],
                             "thumbnailPhoto": "",
                         },
                         "credentials": {},
@@ -738,7 +741,40 @@ app.post('/api/connectUserAndGroups', acls, (req, res, next) => {
                     });
     
                 } else {
-                    console.log("User already exists:", userName)
+                    console.log("User already exists:", userName);
+                    // 更新用户的分组
+                    UserIdentity.findOne(
+                        {
+                            where: {
+                                userId: userinstance.id
+                            }
+                        },
+                        function (err, userIdentity) {
+                            if (err) {
+                                console.log("Error when finding UserIdentity:" + err + " " + userName)
+                                return next(err)
+                            } else {
+                                if (userIdentity.profile.accessGroups.indexOf(group) == -1) {
+                                    userIdentity.profile.accessGroups.push(group);
+
+                                    UserIdentity.updateAll(
+                                        {
+                                            id: userIdentity.id
+                                        },
+                                        {
+                                            profile: userIdentity.profile
+                                        },
+                                        function (err, retUserIdentity) {
+                                            if (err) {
+                                                console.log("Error when update UserIdentity:" + err + " " + userName)
+                                                return next(err)
+                                            };
+                                        }
+                                    );
+                                }
+                            }
+                        }
+                    );
                 }
                 // and create role
                 var role = group;
@@ -862,7 +898,40 @@ app.delete('/api/deleteUserFromGroups', acls, (req, res, next) => {
                             }
                             // console.log('--------RoleMapping: ', instances);
                             if (instances.count > 0) {
-                                res.send('delete ' + user.username + ' from ' + role.name);
+                                // 更新用户的分组
+                                UserIdentity.findOne(
+                                    {
+                                        where: {
+                                            userId: userId
+                                        }
+                                    },
+                                    function (err, userIdentity) {
+                                        if (err) {
+                                            console.log("Error when finding UserIdentity:" + err + " " + userName)
+                                            return next(err)
+                                        } else {
+                                            var accessGroupsIndex = userIdentity.profile.accessGroups.indexOf(role.name);
+                                            if (accessGroupsIndex != -1) {
+                                                userIdentity.profile.accessGroups.splice(accessGroupsIndex, 1);
+                                                UserIdentity.updateAll(
+                                                    {
+                                                        id: userIdentity.id
+                                                    },
+                                                    {
+                                                        profile: userIdentity.profile
+                                                    },
+                                                    function (err, retUserIdentity) {
+                                                        if (err) {
+                                                            console.log("Error when update UserIdentity:" + err + " " + userName)
+                                                            return next(err)
+                                                        };
+                                                        res.send('delete ' + user.username + ' from ' + role.name);
+                                                    }
+                                                );
+                                            }
+                                        }
+                                    }
+                                );
                             } else {
                                 res.send(user.username + ' is not a member of ' + role.name);
                             }
