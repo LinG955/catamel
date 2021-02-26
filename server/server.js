@@ -229,29 +229,35 @@ User.validatesUniquenessOf('username', { message: 'username is not unique!' });
  * 网页跳转登录
  */
 app.post('/api/lssf/login', function (req, res, next) {
-    // 通过referer判断跳转的来源网页是否合法
-    var referer = req.headers.referer;
-    if(referer == null) {
-        return res.status(403).send({
-            massage: "Illegal URL ! Please log in from http://lssf.cas.cn/"
-        })
-    }
-    // 只允许从合肥光源用户实验管理系统跳转
-    var srcUrl = 'http://localhost:4222';
 
-    if(referer.search(srcUrl) == -1) {
+    // 通过referer判断请求是否合法，只允许来自SciCat前端catanie的调用该接口
+    var referer = req.headers.referer;
+    if (referer == null || referer.search('http://localhost:4222') == -1) {
         return res.status(403).send({
             massage: "Illegal URL ! Please log in from http://lssf.cas.cn/"
         })
     }
-    var redirectUrl = req.body.redirectUrl;
-    var start = redirectUrl.indexOf("=");
-    var loginUsername = redirectUrl.substring(start+1);
-    console.log("loginUsername: ", loginUsername);
+
+    // 取出url后面的参数，判断参数数量是否与约定的相同
+    var paramsArr = req.body.redirectUrl.split('?').pop().split('&');
+    if (paramsArr.length != 3) {
+        return res.status(403).send({
+            massage: "Illegal URL ! Please log in from http://lssf.cas.cn/"
+        })
+    }
+    // 将参数封装成json
+    var paramsObj = {};
+    paramsObj.username = paramsArr[0].split('=').pop();
+    paramsObj.email = paramsArr[1].split('=').pop();
+    paramsObj.searchGroup = paramsArr[2].split('=').pop();
+    if (paramsObj.searchGroup === "All") {
+        paramsObj.searchGroup = "";
+    }
+
     User.findOne(
         {
             where: {
-                username: loginUsername
+                username: paramsObj.username
             }
         },
         function (err, user) {
@@ -261,9 +267,12 @@ app.post('/api/lssf/login', function (req, res, next) {
                     massage: "user is not exist !"
                 })
             };
-            var ttl = 1209600;
+            // 登录过期时间为10分钟
+            var ttl = 600;
             user.createAccessToken(ttl, function (err, token) {
                 if (err) return next(err);
+                // 在返回的AccessToken中，添加前端dataset搜索所需的过滤条件searchGroup
+                token.searchGroup = paramsObj.searchGroup;
                 res.send(token);
             });
         })
@@ -272,15 +281,15 @@ app.post('/api/lssf/login', function (req, res, next) {
 /**
  * 在路由中间件中更新AccessToken，避免用户在操作中令牌过期
  */
-// app.use(function(req, res, next) {
-//     let token = req.accessToken;
-//     if (!token) return next(); 
+app.use(function(req, res, next) {
+    let token = req.accessToken;
+    if (!token) return next(); 
   
-//     let now = new Date();
-//     // for performance, you can drop it
-//     if (now.getTime() - token.created.getTime() < 6000) return next();
-//     token.updateAttribute('created', now, next);
-//   });
+    let now = new Date();
+    // 有效期少于2分钟则更新令牌
+    if (now.getTime() - token.created.getTime() < 120000) return next();
+    token.updateAttribute('created', now, next);
+  });
 
 /**
  * 将权限控制代码抽取出来作为路由中间件，提高可复用性
@@ -358,10 +367,8 @@ const acls = (req, res, next) => {
     );
 }
 
-// 在这里定义的路由，不会触发0-script.js中的strong-remoting phase代码
-
 /**
- * 根据用户名查找所在的组 findUserGroups
+ * 根据用户名或ID查找所在的组 findUserGroups
  */
 app.get('/api/findUserGroups', acls, (req, res, next) => {
 
@@ -380,12 +387,22 @@ app.get('/api/findUserGroups', acls, (req, res, next) => {
     }
     // console.log('--------accessToken: ', req.accessToken.userId);
     // console.log('--------userId: ', userId);
-    User.findOne(
-        {
+    var userFilter = {};
+    if (!!req.query.username) {
+        userFilter = {
             where: {
                 username: req.query.username
             }
-        },
+        }
+    } else {
+        userFilter = {
+            where: {
+                id: req.query.userId
+            }
+        }
+    }
+    User.findOne(
+        userFilter,
         function (err, user) {
             if (err) return next(err);
             if (user == null) {
