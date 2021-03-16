@@ -355,7 +355,7 @@ const acls = (req, res, next) => {
                     for (let i = 0; i < allowArray.length; i++) {
                         if (roleNameList.indexOf(allowArray[i]) > 0) {
                             // 激活权限标志位
-                            flag = "allowUserManagement";
+                            flag = configLocal.userManagementFlag;
                             break;
                         };
                     }
@@ -373,7 +373,7 @@ const acls = (req, res, next) => {
 app.get('/api/findUserGroups', acls, (req, res, next) => {
 
     // 是否有权限
-    const aclsMatchFlag = req.flag === "allowUserManagement";
+    const aclsMatchFlag = req.flag === configLocal.userManagementFlag;
     if (!aclsMatchFlag) {
         var massage = {
             "error": {
@@ -461,7 +461,7 @@ app.get('/api/findUserGroups', acls, (req, res, next) => {
 app.delete('/api/deleteUserByName', acls, (req, res, next) => {
 
     // 是否有权限
-    const aclsMatchFlag = req.flag === "allowUserManagement";
+    const aclsMatchFlag = req.flag === configLocal.userManagementFlag;
     if (!aclsMatchFlag) {
         var massage = {
             "error": {
@@ -549,7 +549,7 @@ app.delete('/api/deleteUserByName', acls, (req, res, next) => {
 app.get('/api/findGroupMember', acls, (req, res, next) => {
 
     // 是否有权限
-    const aclsMatchFlag = req.flag === "allowUserManagement";
+    const aclsMatchFlag = req.flag === configLocal.userManagementFlag;
     if (!aclsMatchFlag) {
         var massage = {
             "error": {
@@ -619,7 +619,7 @@ app.get('/api/findGroupMember', acls, (req, res, next) => {
 app.delete('/api/deleteGroupByName', acls, (req, res, next) => {
 
     // 是否有权限
-    const aclsMatchFlag = req.flag === "allowUserManagement";
+    const aclsMatchFlag = req.flag === configLocal.userManagementFlag;
     if (!aclsMatchFlag) {
         var massage = {
             "error": {
@@ -684,7 +684,7 @@ app.delete('/api/deleteGroupByName', acls, (req, res, next) => {
 app.post('/api/connectUserAndGroups', acls, (req, res, next) => {
 
     // 是否有权限
-    const aclsMatchFlag = req.flag === "allowUserManagement";
+    const aclsMatchFlag = req.flag === configLocal.userManagementFlag;
     if (!aclsMatchFlag) {
         var massage = {
             "error": {
@@ -715,15 +715,15 @@ app.post('/api/connectUserAndGroups', acls, (req, res, next) => {
         var data = {
             realm: 'lssf',
             username: userName,
-            password: 'nsrl@scicat-' + userName,
+            password: configLocal.userPasswordPrefix + userArray[index].email,
             email: userArray[index].email,
             emailVerified: true
         }
         
-        // create User if not yet there
+        // 中科院平台的username是唯一的，邮箱可以重复，而loopback的邮箱不允许重复，所以这里的搜索过滤条件使用邮箱
         var filter = {
             where: {
-                username: userName
+                email: data.email
             }
         }
         
@@ -857,7 +857,7 @@ app.post('/api/connectUserAndGroups', acls, (req, res, next) => {
 app.delete('/api/deleteUserFromGroups', acls, (req, res, next) => {
 
     // 是否有权限
-    const aclsMatchFlag = req.flag === "allowUserManagement";
+    const aclsMatchFlag = req.flag === configLocal.userManagementFlag;
     if (!aclsMatchFlag) {
         var massage = {
             "error": {
