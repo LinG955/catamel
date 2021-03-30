@@ -1,6 +1,6 @@
 module.exports = function (app) {
     const jwt = require("jsonwebtoken");
-    const config = require("../../server/config.json");
+    const config = require("../../server/config.local");
     const signAndVerifyOptions = {
         expiresIn: config.jwtExpiresIn || "1h",
     };
@@ -19,7 +19,7 @@ module.exports = function (app) {
             if (!token) {
                 const groups = ["public"];
                 const payload = {
-                    username: "anonymous",
+                    userId: "anonymous",
                     groups,
                 };
                 const jwtString = jwt.sign(
@@ -40,7 +40,7 @@ module.exports = function (app) {
                 groups = [];
             }
             const payload = {
-                username: userId,
+                userId: userId,
                 groups,
             };
             const jwtString = jwt.sign(payload, secret, signAndVerifyOptions);

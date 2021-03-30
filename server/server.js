@@ -961,6 +961,146 @@ app.delete('/api/deleteUserFromGroups', acls, (req, res, next) => {
 
 });
 
+/*********************************************/
+/***********     文件下载接口     *************/
+/*********************************************/
+
+const request = require('request');
+const jwt = require('jsonwebtoken');
+
+/**
+ * 向存储系统提交下载请求
+ */
+app.post('/api/multipleDownloadAction', async (req, res, next) => {
+    var bodyData =
+    // { 
+    //     "directory": "do_not_del/test/base",
+    //     "files": [ "Capture.PNG", "bigpic/Capture.PNG" ] 
+    // }
+    {
+        "directory": req.body.directory,
+        "files": req.body.files
+    };
+    var options = {
+        method: 'POST',
+        url: configLocal.multipleDownloadAction,
+        body: bodyData,
+        json: true,
+        headers: {
+            "content-type": "application/json",
+        },
+        auth: {
+            user: configLocal.storaSystemAuthUser,
+            pass: configLocal.storaSystemAuthPassword
+        }
+    }
+    request.post(options, function (error, response, body) {
+        if (error) {
+            var data = {
+                "result": false,
+                "info": "Error",
+                "data": null
+            }
+            res.send(data);
+        }
+        // 请求成功
+        if (response.statusCode == 200) {
+            res.send(body);
+        } else {
+            var data = {
+                "result": false,
+                "info": "Fail",
+                "data": null
+            }
+            //console.log("multiple response: ", response.statusCode);
+            res.send(data);
+        }
+    });
+});
+
+/**
+ * 前端轮询存储系统是否准备好待下载的文件
+ */
+app.get('/api/pollDownloadResult', async (req, res, next) => {
+    // console.log("req.query: ", req.query);
+    var options = {
+        method: 'GET',
+        uri: configLocal.pollDownloadResult + '?jobId=' + req.query.jobId,
+        auth: {
+            user: configLocal.storaSystemAuthUser,
+            pass: configLocal.storaSystemAuthPassword
+        }
+    }
+
+    request.get(options, function (error, response, body) {
+        if (error) {
+            var data = {
+                "result": false,
+                "info": "Error",
+                "data": null
+            }
+            res.send(data);
+        }
+        // 请求成功
+        if (response.statusCode == 200) {
+            // console.log("pollDownloadResult body: ", body);
+            res.send(body);
+        } else {
+            var data = {
+                "result": false,
+                "info": "Fail",
+                "data": null
+            }
+            res.send(data);
+        }
+    });
+});
+
+/**
+ * jwt验证
+ */
+app.get('/api/isValidJWT', async (req, res, next) => {
+    
+    const jwtString = req.query.jwt;
+    // jwt在有效期
+    try {
+        const { userId } = jwt.verify(jwtString, configLocal.jwtSecret);
+
+        User.findById(userId).then(user => {
+            // 用户id不存在，该jwt可能是伪造的
+            if(user == null) {
+                const respose = {
+                    "result": false,
+                    "info": "Illegal"
+                }
+                res.status(200).send(respose);
+            } else {
+                const respose = {
+                    "result": true,
+                    "info": "Success"
+                }
+                res.status(200).send(respose);
+            }
+        }
+        // 查找用户出错
+        ).catch(error => {
+            const respose = {
+                "result": false,
+                "info": "Error"
+            }
+            res.send(respose);
+        });
+    }
+    // jwt过期或jwt错误
+    catch (error) {
+        const respose = {
+            "result": false,
+            "info": "Expired"
+        }
+        res.status(200).send(respose);
+    }
+});
+
 app.post('/api/test', (req, res, next) => {
     console.log('+++++++++ req.body:', req.body);
     res.send(req.body);
